@@ -1,0 +1,20 @@
+# Build files
+build/
+bin/
+out/
+
+# Executables
+*.exe
+
+# Visual Studio
+.vs/
+*.sln
+*.vcxproj*
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
+# Misc
+.DS_Store
