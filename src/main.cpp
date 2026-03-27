@@ -22,6 +22,10 @@ using namespace std;
 const unsigned int WINDOW_WIDTH = 800;
 const unsigned int WINDOW_HEIGHT = 600;
 
+// timing
+float delta_time = 0.0f; // time between current and last frame
+float last_frame = 0.0f;
+
 // constants
 const float PI = 3.14159265359f;
 
@@ -153,12 +157,22 @@ int main(void)
     // Configure global openGL state
     glEnable(GL_DEPTH_TEST);
 
-    // Build and Compile Our Shader
+    // Build and Compile Main Shader
     Shader mainShader("shaders/v_shader.txt", "shaders/f_shader.txt");
 
     // --- DATA ---
+    // Circle Data
+    float radius = 0.2f;
+    unsigned int segmants = 100;
+
+    // Position Data
+    float circle_pos_x = 0.0f;
+    float circle_pos_y = 0.0f;
+    float velocity_x = 0.5f;
+    float velocity_y = 0.5f;
+
     // Vertex Data
-    vector<glm::vec2> circle = create_circle(0.0f, 0.0f, 0.2f, 100);
+    vector<glm::vec2> circle = create_circle(circle_pos_x, circle_pos_y, radius, segmants);
 
     // --- CONFIGURE CUBE VAO (AND VBO) ---
     unsigned int VBO, VAO;
@@ -176,6 +190,11 @@ int main(void)
     // ===== Render Loop =====
     while (!glfwWindowShouldClose(window))
     {
+        // --- Pre-Frame timem logic ---
+        float current_frame = static_cast<float>(glfwGetTime());
+        delta_time = current_frame - last_frame;
+        last_frame = current_frame;
+
         // --- INPUT ---
         processInput(window);
 
@@ -188,11 +207,34 @@ int main(void)
         glfwGetFramebufferSize(window, &width, &height);
         float aspect = (float)width / (float)height;
 
-        // --- RENDER CIRCLE ---
-        mainShader.use();
-        int aspectLoc = glGetUniformLocation(mainShader.ID, "aspect");
-        glUniform1f(aspectLoc, aspect);
+        // --- MOVEMENT ---
+        // Update circle position
+        circle_pos_x = circle_pos_x + velocity_x * delta_time;
 
+        // Boundary Checks
+        if (circle_pos_x + radius >= 1.0f)
+        {
+            circle_pos_x = 1.0f - radius;
+            velocity_x *= -1.0f;
+        }
+        else if (circle_pos_x - radius <= -1.0f)
+        {
+            circle_pos_x = -1.0f + radius;
+            velocity_x *= -1.0f;
+        }
+
+        // --- TRANSFORMATIONS ---
+        glm::mat4 transform = glm::mat4(1.0f); // initialize matrix to identity matrix first
+        transform = glm::translate(transform, glm::vec3(circle_pos_x, circle_pos_y, 0.0f));
+
+        // --- SHADER STUFF ---
+        mainShader.use();
+        unsigned int aspectLoc = glGetUniformLocation(mainShader.ID, "aspect");
+        unsigned int transformLoc = glGetUniformLocation(mainShader.ID, "transform");
+        glUniform1f(aspectLoc, aspect);
+        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
+
+        // --- DRAW CIRCLE ---
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLE_FAN, 0, circle.size());
 
