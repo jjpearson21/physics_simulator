@@ -13,6 +13,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <random>
 
 using namespace std;
 
@@ -120,19 +121,33 @@ unsigned int load_texture(char const *path)
     return textureID;
 }
 
-vector<glm::vec2> create_circle(float centerX, float centerY, float radius, int segments)
+vector<glm::vec2> create_circle(float radius, int segments, float aspect)
 {
     vector<glm::vec2> vertices;
 
-    // Center
-    vertices.push_back(glm::vec2(centerX, centerY));
+    float radius_x;
+    float radius_y;
+
+    if (aspect > 1.0f)
+    {
+        radius_x = radius / aspect;
+        radius_y = radius;
+    }
+    else
+    {
+        radius_x = radius;
+        radius_y = radius * aspect;
+    }
+
+    // Center at origin
+    vertices.push_back(glm::vec2(0.0f, 0.0f));
 
     for (int i = 0; i <= segments; i++)
     {
         float angle = 2.0f * PI * i / segments;
 
-        float x = centerX + radius * cos(angle);
-        float y = centerY + radius * sin(angle);
+        float x = radius_x * cos(angle);
+        float y = radius_y * sin(angle);
 
         vertices.push_back(glm::vec2(x, y));
     }
@@ -161,18 +176,48 @@ int main(void)
     Shader mainShader("shaders/v_shader.txt", "shaders/f_shader.txt");
 
     // --- DATA ---
+    // Aspect Ratio
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    float aspect = (float)width / (float)height;
+
     // Circle Data
     float radius = 0.2f;
     unsigned int segmants = 100;
 
+    // Actual extents used for collision
+    float radius_x;
+    float radius_y;
+
+    if (aspect > 1.0f)
+    {
+        radius_x = radius / aspect;
+        radius_y = radius;
+    }
+    else
+    {
+        radius_x = radius;
+        radius_y = radius * aspect;
+    }
+
     // Position Data
     float circle_pos_x = 0.0f;
     float circle_pos_y = 0.0f;
-    float velocity_x = 0.5f;
-    float velocity_y = 0.5f;
+
+    // Velocity Data
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_real_distribution<float> dist(0.0f, 2.0f * PI);
+
+    float angle = dist(gen);
+    float dir_x = cos(angle);
+    float dir_y = sin(angle);
+    float speed = 0.5f;
+    float velocity_x = dir_x * speed;
+    float velocity_y = dir_y * speed;
 
     // Vertex Data
-    vector<glm::vec2> circle = create_circle(circle_pos_x, circle_pos_y, radius, segmants);
+    vector<glm::vec2> circle = create_circle(radius, segmants, aspect);
 
     // --- CONFIGURE CUBE VAO (AND VBO) ---
     unsigned int VBO, VAO;
@@ -202,25 +247,33 @@ int main(void)
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // --- ASPECT RATIO ---
-        int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
-        float aspect = (float)width / (float)height;
-
         // --- MOVEMENT ---
         // Update circle position
         circle_pos_x = circle_pos_x + velocity_x * delta_time;
+        circle_pos_y = circle_pos_y + velocity_y * delta_time;
 
-        // Boundary Checks
-        if (circle_pos_x + radius >= 1.0f)
+        // X boundaries
+        if (circle_pos_x + radius_x >= 1.0f)
         {
-            circle_pos_x = 1.0f - radius;
+            circle_pos_x = 1.0f - radius_x;
             velocity_x *= -1.0f;
         }
-        else if (circle_pos_x - radius <= -1.0f)
+        else if (circle_pos_x - radius_x <= -1.0f)
         {
-            circle_pos_x = -1.0f + radius;
+            circle_pos_x = -1.0f + radius_x;
             velocity_x *= -1.0f;
+        }
+
+        // Y boundaries
+        if (circle_pos_y + radius_y >= 1.0f)
+        {
+            circle_pos_y = 1.0f - radius_y;
+            velocity_y *= -1.0f;
+        }
+        else if (circle_pos_y - radius_y <= -1.0f)
+        {
+            circle_pos_y = -1.0f + radius_y;
+            velocity_y *= -1.0f;
         }
 
         // --- TRANSFORMATIONS ---
@@ -229,9 +282,7 @@ int main(void)
 
         // --- SHADER STUFF ---
         mainShader.use();
-        unsigned int aspectLoc = glGetUniformLocation(mainShader.ID, "aspect");
         unsigned int transformLoc = glGetUniformLocation(mainShader.ID, "transform");
-        glUniform1f(aspectLoc, aspect);
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
 
         // --- DRAW CIRCLE ---
