@@ -18,6 +18,8 @@
 using namespace std;
 
 // ===== Settings =====
+// mathematical constants
+const float PI = 3.14159265359f;
 
 // window
 const unsigned int WINDOW_WIDTH = 800;
@@ -27,40 +29,41 @@ const unsigned int WINDOW_HEIGHT = 600;
 float delta_time = 0.0f; // time between current and last frame
 float last_frame = 0.0f;
 
-// constants
-const float PI = 3.14159265359f;
-const float PARTICLE_RADIUS = 0.2f;
+// Random Velocity Direction Generation
+random_device rd;
+mt19937 gen(rd());
+uniform_real_distribution<float> dist(0.0f, 2.0f * PI);
+float angle1 = dist(gen);
+float angle2 = dist(gen);
+
+// particles
+float p1_radius = 0.2f;
+glm::vec2 p1_pos = glm::vec2(0.5f, 0.0f);
+float p1_speed = 2.0f;
+glm::vec2 p1_velo = glm::vec2(cos(angle1), sin(angle1)) * p1_speed;
+
+float p2_radius = 0.2f;
+glm::vec2 p2_pos = glm::vec2(-0.5f, 0.0f);
+float p2_speed = 2.0f;
+glm::vec2 p2_velo = glm::vec2(cos(angle2), sin(angle2)) * p2_speed;
 
 // ===== Structs =====
 struct Particle{
+    // Vertex Data
     float radius;
     unsigned int segmants = 100;
 
     // Position
-    float pos_x;
-    float pos_y;
+    glm::vec2 position;
 
-    // Velocity Data
-    float velocity_x;
-    float velocity_y;
+    // Velocity
+    glm::vec2 velocity;
 
-    Particle(float x, float y, float r)
+    Particle(float r, glm::vec2 pos, glm::vec2 velo)
     {
         radius = r;
-        pos_x = x;
-        pos_y = y;
-
-        random_device rd;
-        mt19937 gen(rd());
-        uniform_real_distribution<float> dist(0.0f, 2.0f * PI);
-
-        float angle = dist(gen);
-        float dir_x = cos(angle);
-        float dir_y = sin(angle);
-        float speed = 0.5f;
-
-        velocity_x = dir_x * speed;
-        velocity_y = dir_y * speed;
+        position = pos;
+        velocity = velo;
     }
 };
 
@@ -178,49 +181,39 @@ vector<glm::vec2> create_circle(float radius, int segments, float aspect)
 // Collision Functions
 bool check_collision(Particle &p1, Particle &p2)
 {
-    float dx = p1.pos_x - p2.pos_x;
-    float dy = p1.pos_y - p2.pos_y;
+    glm::vec2 dPos = p1.position - p2.position;
 
-    float distance = sqrt((dx*dx) + (dy*dy));
-
-    return distance <= (p1.radius + p2.radius);
+    return glm::dot(dPos, dPos) <= (p1.radius + p2.radius) * (p1.radius + p2.radius);
 }
 
 void collision_response(Particle &p1, Particle &p2)
 {
     // Get direction between centers
-    float dx = p2.pos_x - p1.pos_x;
-    float dy = p2.pos_y - p1.pos_y;
+    glm::vec2 dPos = p2.position - p1.position;
 
     // Get distance between centers
-    float distance = sqrt((dx * dx) + (dy * dy));
+    float distance = length(dPos);
     if(distance == 0)
     {
         return;
     }
 
     // Get the collision normal (the line along which the collision happens)
-    float norm_x = dx / distance;
-    float norm_y = dy / distance;
+    glm::vec2 norm = dPos / distance;
 
     // Overlap
     float overlap = (p1.radius + p2.radius) - distance;
     if(overlap > 0)
     {
-        p1.pos_x = p1.pos_x - ((overlap / 2) * norm_x);
-        p1.pos_y = p1.pos_y - ((overlap / 2) * norm_y);
-        p2.pos_x = p2.pos_x + ((overlap / 2) * norm_x);
-        p2.pos_y = p2.pos_y + ((overlap / 2) * norm_y);
+        p1.position = p1.position - ((overlap / 2) * norm);
+        p2.position = p2.position + ((overlap / 2) * norm);
     }
 
     // Relative velocity
-    float rel_velocity_x = p2.velocity_x - p1.velocity_x;
-    float rel_velocity_y = p2.velocity_y - p1.velocity_y;
+    glm::vec2 rel_velocity = p2.velocity - p1.velocity;
 
     // Velocity along normal
-    glm::vec2 rel_velocity = glm::vec2(rel_velocity_x, rel_velocity_y);
-    glm::vec2 norm_position = glm::vec2(norm_x, norm_y);
-    float velo_along_norm = glm::dot(rel_velocity, norm_position);
+    float velo_along_norm = glm::dot(rel_velocity, norm);
 
     // Check if moving toward or apart
     if (velo_along_norm > 0)
@@ -229,13 +222,10 @@ void collision_response(Particle &p1, Particle &p2)
     }
 
     // Correct velocity
-    float velo_correct_x = -velo_along_norm * norm_x;
-    float velo_correct_y = -velo_along_norm * norm_y;
+    glm::vec2 velo_correct = -velo_along_norm * norm;
 
-    p1.velocity_x -= velo_correct_x;
-    p1.velocity_y -= velo_correct_y;
-    p2.velocity_x += velo_correct_x;
-    p2.velocity_y += velo_correct_y;
+    p1.velocity -= velo_correct;
+    p2.velocity += velo_correct;
 }
 
 // ===== MAIN =====
@@ -258,8 +248,8 @@ int main(void)
     Shader mainShader("shaders/v_shader.txt", "shaders/f_shader.txt");
 
     // --- DATA ---
-    Particle p1(-0.5f, 0.0f, PARTICLE_RADIUS);
-    Particle p2(0.5f, 0.0f, PARTICLE_RADIUS);
+    Particle p1(p1_radius, p1_pos, p1_velo);
+    Particle p2(p2_radius, p2_pos, p2_velo);
 
     // Aspect Ratio
     int width, height;
@@ -270,7 +260,7 @@ int main(void)
     vector<glm::vec2> particleMesh = create_circle(p1.radius, p1.segmants, aspect);
 
     // --- CONFIGURE CUBE VAO (AND VBO) ---
-    unsigned int VBO, VAO;
+    unsigned int VAO, VBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
 
@@ -303,57 +293,55 @@ int main(void)
 
         // --- MOVEMENT ---
         // Update circle position
-        p1.pos_x = p1.pos_x + p1.velocity_x * delta_time;
-        p1.pos_y = p1.pos_y + p1.velocity_y * delta_time;
-        p2.pos_x = p2.pos_x + p2.velocity_x * delta_time;
-        p2.pos_y = p2.pos_y + p2.velocity_y * delta_time;
+        p1.position = p1.position + p1.velocity * delta_time;
+        p2.position = p2.position + p2.velocity * delta_time;
 
         // p1 X boundaries
-        if (p1.pos_x + PARTICLE_RADIUS >= aspect)
+        if (p1.position.x + p1.radius >= aspect)
         {
-            p1.pos_x = aspect - PARTICLE_RADIUS;
-            p1.velocity_x *= -1.0f;
+            p1.position.x = aspect - p1.radius;
+            p1.velocity.x *= -1.0f;
         }
-        else if (p1.pos_x - PARTICLE_RADIUS <= -aspect)
+        else if (p1.position.x - p1.radius <= -aspect)
         {
-            p1.pos_x = -aspect + PARTICLE_RADIUS;
-            p1.velocity_x *= -1.0f;
+            p1.position.x = -aspect + p1.radius;
+            p1.velocity.x *= -1.0f;
         }
 
         // p1 Y boundaries
-        if (p1.pos_y + PARTICLE_RADIUS >= 1.0f)
+        if (p1.position.y + p1.radius >= 1.0f)
         {
-            p1.pos_y = 1.0f - PARTICLE_RADIUS;
-            p1.velocity_y *= -1.0f;
+            p1.position.y = 1.0f - p1.radius;
+            p1.velocity.y *= -1.0f;
         }
-        else if (p1.pos_y - PARTICLE_RADIUS <= -1.0f)
+        else if (p1.position.y - p1.radius <= -1.0f)
         {
-            p1.pos_y = -1.0f + PARTICLE_RADIUS;
-            p1.velocity_y *= -1.0f;
+            p1.position.y = -1.0f + p1.radius;
+            p1.velocity.y *= -1.0f;
         }
 
         // p2 X boundaries
-        if (p2.pos_x + PARTICLE_RADIUS >= aspect)
+        if (p2.position.x + p2.radius >= aspect)
         {
-            p2.pos_x = aspect - PARTICLE_RADIUS;
-            p2.velocity_x *= -1.0f;
+            p2.position.x = aspect - p2.radius;
+            p2.velocity.x *= -1.0f;
         }
-        else if (p2.pos_x - PARTICLE_RADIUS <= -aspect)
+        else if (p2.position.x - p2.radius <= -aspect)
         {
-            p2.pos_x = -aspect + PARTICLE_RADIUS;
-            p2.velocity_x *= -1.0f;
+            p2.position.x = -aspect + p2.radius;
+            p2.velocity.x *= -1.0f;
         }
 
         // p1 Y boundaries
-        if (p2.pos_y + PARTICLE_RADIUS >= 1.0f)
+        if (p2.position.y + p2.radius >= 1.0f)
         {
-            p2.pos_y = 1.0f - PARTICLE_RADIUS;
-            p2.velocity_y *= -1.0f;
+            p2.position.y = 1.0f - p2.radius;
+            p2.velocity.y *= -1.0f;
         }
-        else if (p2.pos_y - PARTICLE_RADIUS <= -1.0f)
+        else if (p2.position.y - p2.radius <= -1.0f)
         {
-            p2.pos_y = -1.0f + PARTICLE_RADIUS;
-            p2.velocity_y *= -1.0f;
+            p2.position.y = -1.0f + p2.radius;
+            p2.velocity.y *= -1.0f;
         }
 
         // Collisions
@@ -372,7 +360,7 @@ int main(void)
 
         // --- FIRST PARTICLE ---
         glm::mat4 transform = glm::mat4(1.0f); // initialize matrix to identity matrix first
-        transform = glm::translate(transform, glm::vec3(p1.pos_x, p1.pos_y, 0.0f));
+        transform = glm::translate(transform, glm::vec3(p1.position, 0.0f));
 
         unsigned int transformLoc = glGetUniformLocation(mainShader.ID, "transform");
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
@@ -382,7 +370,7 @@ int main(void)
 
         // --- SECOND PARTICLE ---
         transform = glm::mat4(1.0f);
-        transform = glm::translate(transform, glm::vec3(p2.pos_x, p2.pos_y, 0.0f));
+        transform = glm::translate(transform, glm::vec3(p2.position, 0.0f));
 
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
 
