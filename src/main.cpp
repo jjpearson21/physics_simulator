@@ -41,11 +41,15 @@ float p1_radius = 0.2f;
 glm::vec2 p1_pos = glm::vec2(0.5f, 0.0f);
 float p1_speed = 2.0f;
 glm::vec2 p1_velo = glm::vec2(cos(angle1), sin(angle1)) * p1_speed;
+float p1_mass = 1.0f;
+float p1_e = 0.9f;
 
-float p2_radius = 0.2f;
+float p2_radius = 0.3f;
 glm::vec2 p2_pos = glm::vec2(-0.5f, 0.0f);
 float p2_speed = 2.0f;
 glm::vec2 p2_velo = glm::vec2(cos(angle2), sin(angle2)) * p2_speed;
+float p2_mass = 20.0f;
+float p2_e = 1.0f;
 
 // ===== Structs =====
 struct Particle{
@@ -59,11 +63,19 @@ struct Particle{
     // Velocity
     glm::vec2 velocity;
 
-    Particle(float r, glm::vec2 pos, glm::vec2 velo)
+    // Mass
+    float mass;
+
+    // Restitution
+    float e;
+
+    Particle(float r, glm::vec2 pos, glm::vec2 velo, float p_mass, float p_e)
     {
         radius = r;
         position = pos;
         velocity = velo;
+        mass = p_mass;
+        e = p_e;
     }
 };
 
@@ -203,10 +215,14 @@ void collision_response(Particle &p1, Particle &p2)
 
     // Overlap
     float overlap = (p1.radius + p2.radius) - distance;
+    float invMass1 = 1.0f / p1.mass;
+    float invMass2 = 1.0f / p2.mass;
+    float invMassSum = invMass1 + invMass2;
+
     if(overlap > 0)
     {
-        p1.position = p1.position - ((overlap / 2) * norm);
-        p2.position = p2.position + ((overlap / 2) * norm);
+        p1.position -= (overlap * (invMass1 / invMassSum)) * norm;
+        p2.position += (overlap * (invMass2 / invMassSum)) * norm;
     }
 
     // Relative velocity
@@ -221,11 +237,16 @@ void collision_response(Particle &p1, Particle &p2)
         return;
     }
 
-    // Correct velocity
-    glm::vec2 velo_correct = -velo_along_norm * norm;
+    // Restitution constant from each particle in the collision
+    float e = min(p1.e, p2.e);
 
-    p1.velocity -= velo_correct;
-    p2.velocity += velo_correct;
+    // Calculate the impulse magnitude and turn it into a vector
+    float j = (-(1.0f + e) * velo_along_norm) / ((1.0f / p1.mass) + (1.0f / p2.mass));
+    glm::vec2 impulse = j * norm;
+    
+
+    p1.velocity -= impulse / p1.mass;
+    p2.velocity += impulse / p2.mass;
 }
 
 // ===== MAIN =====
@@ -248,8 +269,8 @@ int main(void)
     Shader mainShader("shaders/v_shader.txt", "shaders/f_shader.txt");
 
     // --- DATA ---
-    Particle p1(p1_radius, p1_pos, p1_velo);
-    Particle p2(p2_radius, p2_pos, p2_velo);
+    Particle p1(p1_radius, p1_pos, p1_velo, p1_mass, p1_e);
+    Particle p2(p2_radius, p2_pos, p2_velo, p2_mass, p2_e);
 
     // Aspect Ratio
     int width, height;
@@ -257,17 +278,30 @@ int main(void)
     float aspect = (float)width / (float)height;
 
     // Vertex Data
-    vector<glm::vec2> particleMesh = create_circle(p1.radius, p1.segmants, aspect);
+    vector<glm::vec2> particle1 = create_circle(p1.radius, p1.segmants, aspect);
+    vector<glm::vec2> particle2 = create_circle(p2.radius, p2.segmants, aspect);
 
     // --- CONFIGURE CUBE VAO (AND VBO) ---
-    unsigned int VAO, VBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
+    unsigned int VAO1, VAO2, VBO1, VBO2;
+    glGenVertexArrays(1, &VAO1);
+    glGenVertexArrays(1, &VAO2);
+    glGenBuffers(1, &VBO1);
+    glGenBuffers(1, &VBO2);
 
-    glBindVertexArray(VAO);
+    // Particle 1
+    glBindVertexArray(VAO1);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, particleMesh.size() * sizeof(glm::vec2), particleMesh.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO1);
+    glBufferData(GL_ARRAY_BUFFER, particle1.size() * sizeof(glm::vec2), particle1.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void *)0);
+    glEnableVertexAttribArray(0);
+
+    // Particle 2
+    glBindVertexArray(VAO2);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO2);
+    glBufferData(GL_ARRAY_BUFFER, particle2.size() * sizeof(glm::vec2), particle2.data(), GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void *)0);
     glEnableVertexAttribArray(0);
@@ -365,8 +399,8 @@ int main(void)
         unsigned int transformLoc = glGetUniformLocation(mainShader.ID, "transform");
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
 
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, particleMesh.size());
+        glBindVertexArray(VAO1);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, particle1.size());
 
         // --- SECOND PARTICLE ---
         transform = glm::mat4(1.0f);
@@ -374,8 +408,8 @@ int main(void)
 
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
 
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, particleMesh.size());
+        glBindVertexArray(VAO2);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, particle2.size());
 
         // --- SWAP BUFFERS AND POLL IO EVENTS ---
         glfwSwapBuffers(window);
@@ -383,8 +417,10 @@ int main(void)
     }
 
     // --- DE-ALLOCATE ALL RESOURCES ---
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
+    glDeleteVertexArrays(1, &VAO1);
+    glDeleteVertexArrays(1, &VAO2);
+    glDeleteBuffers(1, &VBO1);
+    glDeleteBuffers(1, &VBO2);
 
     glfwTerminate();
 
