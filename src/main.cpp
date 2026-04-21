@@ -20,6 +20,7 @@ using namespace std;
 // ===== Settings =====
 // mathematical constants
 const float PI = 3.14159265359f;
+glm::vec2 g = glm::vec2(0.0f, -9.8f);             // Earth's gravitational constant (m/s^2)
 
 // window
 const unsigned int WINDOW_WIDTH = 800;
@@ -36,20 +37,23 @@ uniform_real_distribution<float> dist(0.0f, 2.0f * PI);
 float angle1 = dist(gen);
 float angle2 = dist(gen);
 
-// particles
+// Particle 1
 float p1_radius = 0.2f;
 glm::vec2 p1_pos = glm::vec2(0.5f, 0.0f);
 float p1_speed = 2.0f;
 glm::vec2 p1_velo = glm::vec2(cos(angle1), sin(angle1)) * p1_speed;
 float p1_mass = 1.0f;
 float p1_e = 0.9f;
+glm::vec2 p1_accel = g;
 
+// // Particle 2
 float p2_radius = 0.3f;
 glm::vec2 p2_pos = glm::vec2(-0.5f, 0.0f);
 float p2_speed = 2.0f;
 glm::vec2 p2_velo = glm::vec2(cos(angle2), sin(angle2)) * p2_speed;
 float p2_mass = 20.0f;
 float p2_e = 1.0f;
+glm::vec2 p2_accel = g;
 
 // ===== Structs =====
 struct Particle{
@@ -63,17 +67,21 @@ struct Particle{
     // Velocity
     glm::vec2 velocity;
 
+    // Acceleration
+    glm::vec2 acceleration;
+
     // Mass
     float mass;
 
     // Restitution
     float e;
 
-    Particle(float r, glm::vec2 pos, glm::vec2 velo, float p_mass, float p_e)
+    Particle(float r, glm::vec2 pos, glm::vec2 velo, glm::vec2 accel, float p_mass, float p_e)
     {
         radius = r;
         position = pos;
         velocity = velo;
+        acceleration = accel;
         mass = p_mass;
         e = p_e;
     }
@@ -124,9 +132,8 @@ GLFWwindow *create_window()
     // Create window with GLFW
     GLFWwindow *window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "OpenGL", NULL, NULL);
     if (window == NULL)
-    {
         cout << "Failed to create GLFW window" << endl;
-    }
+    
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
@@ -194,7 +201,6 @@ vector<glm::vec2> create_circle(float radius, int segments, float aspect)
 bool check_collision(Particle &p1, Particle &p2)
 {
     glm::vec2 dPos = p1.position - p2.position;
-
     return glm::dot(dPos, dPos) <= (p1.radius + p2.radius) * (p1.radius + p2.radius);
 }
 
@@ -206,9 +212,7 @@ void collision_response(Particle &p1, Particle &p2)
     // Get distance between centers
     float distance = length(dPos);
     if(distance == 0)
-    {
         return;
-    }
 
     // Get the collision normal (the line along which the collision happens)
     glm::vec2 norm = dPos / distance;
@@ -233,9 +237,7 @@ void collision_response(Particle &p1, Particle &p2)
 
     // Check if moving toward or apart
     if (velo_along_norm > 0)
-    {
         return;
-    }
 
     // Restitution constant from each particle in the collision
     float e = min(p1.e, p2.e);
@@ -269,8 +271,8 @@ int main(void)
     Shader mainShader("shaders/v_shader.txt", "shaders/f_shader.txt");
 
     // --- DATA ---
-    Particle p1(p1_radius, p1_pos, p1_velo, p1_mass, p1_e);
-    Particle p2(p2_radius, p2_pos, p2_velo, p2_mass, p2_e);
+    Particle p1(p1_radius, p1_pos, p1_velo, p1_accel, p1_mass, p1_e);
+    Particle p2(p2_radius, p2_pos, p2_velo, p2_accel, p2_mass, p2_e);
 
     // Aspect Ratio
     int width, height;
@@ -326,9 +328,11 @@ int main(void)
         aspect = (float)width / (float)height;
 
         // --- MOVEMENT ---
-        // Update circle position
-        p1.position = p1.position + p1.velocity * delta_time;
-        p2.position = p2.position + p2.velocity * delta_time;
+        // Update circle position and velocity
+        p1.velocity += p1.acceleration * delta_time;
+        p1.position += p1.velocity * delta_time;
+        p2.velocity += p2.acceleration * delta_time;
+        p2.position += p2.velocity * delta_time;
 
         // p1 X boundaries
         if (p1.position.x + p1.radius >= aspect)
@@ -366,7 +370,7 @@ int main(void)
             p2.velocity.x *= -1.0f;
         }
 
-        // p1 Y boundaries
+        // p2 Y boundaries
         if (p2.position.y + p2.radius >= 1.0f)
         {
             p2.position.y = 1.0f - p2.radius;
@@ -378,7 +382,7 @@ int main(void)
             p2.velocity.y *= -1.0f;
         }
 
-        // Collisions
+        //Collisions
         if(check_collision(p1, p2) == true)
         {
             collision_response(p1, p2);
