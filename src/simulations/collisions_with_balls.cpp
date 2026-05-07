@@ -1,4 +1,4 @@
-#include "simulation.h"
+#include "collisions_with_balls.h"
 
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"

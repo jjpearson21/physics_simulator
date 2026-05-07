@@ -15,7 +15,7 @@
 
 #include "physics/collision.h"
 
-#include "simulations/simulation.h"
+#include "simulations/collisions_with_balls.h"
 
 #include "settings/particle_presets.h"
 
