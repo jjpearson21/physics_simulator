@@ -6,8 +6,8 @@
 
 // === MATH ===
 // Approximate value of Pi
-const float PI = 3.14159265359f;
+constexpr float PI = 3.14159265359f;
 
 // === FORCES ===
 // Earth's gravitational constant (m/s^2)
-const glm::vec2 g = glm::vec2(0.0f, -9.8f);
+constexpr glm::vec2 g = glm::vec2(0.0f, -9.8f);

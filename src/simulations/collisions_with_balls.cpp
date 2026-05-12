@@ -6,11 +6,37 @@
 
 #include "../core/shader.h"
 
-#include "../structs/particle.h"
-
 #include "../physics/collision.h"
 
+#include "../settings/constants.h"
+
+#include "../structs/particle.h"
+
 #include <random>
+
+void render_simulation(Shader &shader, std::vector<Particle> &balls, int ballMeshSize, float aspect, unsigned int VAO)
+{
+    // --- ORTHOGRAPHIC PROJECT MATRIX ---
+    glm::mat4 projection = glm::mat4(1.0f); // initialize matrix to identity matrix first
+    projection = glm::ortho(-aspect, aspect, -1.0f, 1.0f, -1.0f, 1.0f);
+
+    shader.use();
+    unsigned int projectionLoc = glGetUniformLocation(shader.ID, "projection");
+    glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+    // --- RENDER BALLS ---
+    for (Particle &ball : balls)
+    {
+        glm::mat4 transform = glm::mat4(1.0f); // initialize matrix to identity matrix first
+        transform = glm::translate(transform, glm::vec3(ball.position, 0.0f));
+
+        unsigned int transformLoc = glGetUniformLocation(shader.ID, "transform");
+        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
+
+        glBindVertexArray(VAO);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, ballMeshSize);
+    }
+}
 
 void update_simulation(std::vector<Particle> &balls, float deltaTime, float aspect)
 {
@@ -56,30 +82,6 @@ void update_simulation(std::vector<Particle> &balls, float deltaTime, float aspe
                 collision_response(balls[i], balls[j]);
             }
         }
-    }
-}
-
-void render_simulation(Shader &shader, std::vector<Particle> &balls, int ballMeshSize, float aspect, unsigned int VAO)
-{
-    // --- ORTHOGRAPHIC PROJECT MATRIX ---
-    glm::mat4 projection = glm::mat4(1.0f); // initialize matrix to identity matrix first
-    projection = glm::ortho(-aspect, aspect, -1.0f, 1.0f, -1.0f, 1.0f);
-
-    shader.use();
-    unsigned int projectionLoc = glGetUniformLocation(shader.ID, "projection");
-    glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
-
-    // --- RENDER BALLS ---
-    for (Particle &ball : balls)
-    {
-        glm::mat4 transform = glm::mat4(1.0f); // initialize matrix to identity matrix first
-        transform = glm::translate(transform, glm::vec3(ball.position, 0.0f));
-
-        unsigned int transformLoc = glGetUniformLocation(shader.ID, "transform");
-        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
-
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, ballMeshSize);
     }
 }
 

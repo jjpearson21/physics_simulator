@@ -11,13 +11,15 @@
 #include "core/camera.h"
 #include "core/stb_image.h"
 
-#include "structs/particle.h"
+#include "menus/main_menu.h"
 
 #include "physics/collision.h"
 
+#include "settings/particles.h"
+
 #include "simulations/collisions_with_balls.h"
 
-#include "settings/particle_presets.h"
+#include "structs/particle.h"
 
 #include <iostream>
 #include <cmath>
@@ -31,13 +33,13 @@ const unsigned int WINDOW_HEIGHT = 600;
 
 // timing
 float deltaTime = 0.0f; // time between current and last frame
-float last_frame = 0.0f;
+float lastFrame = 0.0f;
 
 // ===== App State =====
 enum class AppState
 {
     MainMenu,
-    Simulation,
+    CollisionWithBalls,
     Paused
 };
 
@@ -49,10 +51,16 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-void processInput(GLFWwindow *window)
+void processInput(GLFWwindow *window, AppState currentState)
 {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS && currentState == AppState::MainMenu)
         glfwSetWindowShouldClose(window, true);
+
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS && currentState == AppState::CollisionWithBalls)
+        currentState = AppState::Paused;
+
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS && currentState == AppState::Paused)
+        currentState = AppState::MainMenu;
 }
 
 // Init Functions
@@ -168,10 +176,11 @@ int main(void)
     glEnable(GL_DEPTH_TEST);
 
     // Set app state
-    AppState currentState = AppState::Simulation;
+    AppState currentState = AppState::MainMenu;
 
     // Build and Compile Main Shader
-    Shader mainShader("shaders/v_shader.txt", "shaders/f_shader.txt");
+    Shader mainShader("shaders/vertex_shaders/v_shader.txt", "shaders/fragment_shaders/f_shader.txt");
+    Shader mainMenuShader("shaders/vertex_shaders/v_shader_menu.txt", "shaders/fragment_shaders/f_shader_menu.txt");
 
     // --- DATA ---
     vector<Particle> balls = create_balls();
@@ -185,14 +194,19 @@ int main(void)
     vector<glm::vec2> ballMesh = create_circle(ballRadius, ballSegmants, aspect);
 
     // --- CONFIGURE CUBE VAO (AND VBO) ---
-    unsigned int VAO, VBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
+    unsigned int mainMenuVAO;
+    unsigned int mainMenuVBO;
+    setup_buffer_main_menu(mainMenuVAO, mainMenuVBO);
+
+    unsigned int ballVAO;
+    unsigned int ballVBO;
+    glGenVertexArrays(1, &ballVAO);
+    glGenBuffers(1, &ballVBO);
 
     // Particle 1
-    glBindVertexArray(VAO);
+    glBindVertexArray(ballVAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, ballVBO);
     glBufferData(GL_ARRAY_BUFFER, ballMesh.size() * sizeof(glm::vec2), ballMesh.data(), GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void *)0);
@@ -203,11 +217,11 @@ int main(void)
     {
         // --- Pre-Frame timem logic ---
         float current_frame = static_cast<float>(glfwGetTime());
-        deltaTime = current_frame - last_frame;
-        last_frame = current_frame;
+        deltaTime = current_frame - lastFrame;
+        lastFrame = current_frame;
 
         // --- INPUT ---
-        processInput(window);
+        processInput(window, currentState);
 
         // --- RENDER SCREEN ---
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -217,8 +231,20 @@ int main(void)
         glfwGetFramebufferSize(window, &width, &height);
         aspect = (float)width / (float)height;
 
-        update_simulation(balls, deltaTime, aspect);
-        render_simulation(mainShader, balls, ballMesh.size(), aspect, VAO);
+        switch (currentState)
+        {
+        case AppState::MainMenu:
+            render_main_menu(mainMenuShader, aspect, mainMenuVAO);
+            break;
+
+        case AppState::CollisionWithBalls:
+            update_simulation(balls, deltaTime, aspect);
+            render_simulation(mainShader, balls, ballMesh.size(), aspect, ballVAO);
+            break;
+
+        case AppState::Paused:
+            break;
+        }
 
         // --- SWAP BUFFERS AND POLL IO EVENTS ---
         glfwSwapBuffers(window);
@@ -226,8 +252,10 @@ int main(void)
     }
 
     // --- DE-ALLOCATE ALL RESOURCES ---
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
+    glDeleteVertexArrays(1, &mainMenuVAO);
+    glDeleteBuffers(1, &mainMenuVBO);
+    glDeleteVertexArrays(1, &ballVAO);
+    glDeleteBuffers(1, &ballVBO);
 
     glfwTerminate();
 

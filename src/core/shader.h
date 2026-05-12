@@ -17,15 +17,15 @@ public:
     unsigned int ID;
 
     // Constructor for creation of shader
-    Shader(const char* vertexPath, const char* fragmentPath)
+    Shader(const char *vertexPath, const char *fragmentPath)
     {
         // GET SHADER CODE FROM FILES
         string vertexCode;
         string fragmentCode;
         ifstream vShaderFile;
         ifstream fShaderFile;
-        vShaderFile.exceptions (ifstream::failbit | ifstream::badbit);
-        fShaderFile.exceptions (ifstream::failbit | ifstream::badbit);
+        vShaderFile.exceptions(ifstream::failbit | ifstream::badbit);
+        fShaderFile.exceptions(ifstream::failbit | ifstream::badbit);
         try
         {
             // Open Files
@@ -45,12 +45,12 @@ public:
             vertexCode = vShaderStream.str();
             fragmentCode = fShaderStream.str();
         }
-        catch(ifstream::failure& e)
+        catch (ifstream::failure &e)
         {
             cout << "Error with reading shader files: " << e.what() << endl;
         }
-        const char* vShaderCode = vertexCode.c_str();
-        const char* fShaderCode = fragmentCode.c_str();
+        const char *vShaderCode = vertexCode.c_str();
+        const char *fShaderCode = fragmentCode.c_str();
 
         // COMPILE SHADERS
         unsigned int vertex, fragment;
@@ -102,33 +102,33 @@ public:
     }
 
     void setVec2(const std::string &name, const glm::vec2 &value) const
-    { 
-        glUniform2fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]); 
+    {
+        glUniform2fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
     }
 
     void setVec2(const std::string &name, float x, float y) const
-    { 
-        glUniform2f(glGetUniformLocation(ID, name.c_str()), x, y); 
+    {
+        glUniform2f(glGetUniformLocation(ID, name.c_str()), x, y);
     }
 
     void setVec3(const std::string &name, const glm::vec3 &value) const
-    { 
-        glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]); 
+    {
+        glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
     }
 
     void setVec3(const std::string &name, float x, float y, float z) const
-    { 
-        glUniform3f(glGetUniformLocation(ID, name.c_str()), x, y, z); 
+    {
+        glUniform3f(glGetUniformLocation(ID, name.c_str()), x, y, z);
     }
 
     void setVec4(const std::string &name, const glm::vec4 &value) const
-    { 
-        glUniform4fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]); 
+    {
+        glUniform4fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
     }
 
     void setVec4(const std::string &name, float x, float y, float z, float w) const
-    { 
-        glUniform4f(glGetUniformLocation(ID, name.c_str()), x, y, z, w); 
+    {
+        glUniform4f(glGetUniformLocation(ID, name.c_str()), x, y, z, w);
     }
 
     void setMat2(const std::string &name, const glm::mat2 &mat) const
@@ -145,6 +145,7 @@ public:
     {
         glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
     }
+
 private:
     // Support function for check compile/linking errors
     void checkCompileErrors(unsigned int shader, std::string type)
@@ -157,7 +158,8 @@ private:
             if (!success)
             {
                 glGetShaderInfoLog(shader, 1024, NULL, infoLog);
-                cout << "Shader Compilation Error of type: " << type << "\n" << infoLog << "\n -- --------------------------------------------------- -- " << endl;
+                cout << "Shader Compilation Error of type: " << type << "\n"
+                     << infoLog << "\n -- --------------------------------------------------- -- " << endl;
             }
         }
         else
@@ -166,12 +168,11 @@ private:
             if (!success)
             {
                 glGetProgramInfoLog(shader, 1024, NULL, infoLog);
-                cout << "Program Linking Error of type: " << type << "\n" << infoLog << "\n -- --------------------------------------------------- -- " << endl;
+                cout << "Program Linking Error of type: " << type << "\n"
+                     << infoLog << "\n -- --------------------------------------------------- -- " << endl;
             }
         }
     }
 };
-
-
 
 #endif
