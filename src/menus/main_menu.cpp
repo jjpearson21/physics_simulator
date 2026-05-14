@@ -26,9 +26,20 @@ Button quitButton;
 // --- BUTTON SETTINGS ---
 glm::vec2 buttonSize =  {200, 60};
 glm::vec3 normalColor = {0.2f, 0.7f, 0.3f};
-glm::vec3 hoverColor =  {0.3f, 0.9f, 0.4f};
+glm::vec3 hoverColor =  {0.5f, 0.2f, 0.0f};
 
 // --- MAIN MENU FUNCTIONS ---
+void init_main_menu()
+{
+    startButton.position = {300, 270};
+    startButton.size = buttonSize;
+    startButton.color = normalColor;
+
+    quitButton.position = {300, 200};
+    quitButton.size = buttonSize;
+    quitButton.color = normalColor;
+}
+
 void setup_buffer_main_menu(unsigned int &mainMenuVAO, unsigned int &mainMenuVBO)
 {
     glGenVertexArrays(1, &mainMenuVAO);
@@ -43,7 +54,7 @@ void setup_buffer_main_menu(unsigned int &mainMenuVAO, unsigned int &mainMenuVBO
     glEnableVertexAttribArray(0);
 }
 
-void render_button(Button button, Shader &mainMenuShader, unsigned int mainMenuVAO)
+void render_button(const Button &button, Shader &mainMenuShader, unsigned int mainMenuVAO)
 {
     glm::mat4 model = glm::mat4(1.0f);
 
@@ -59,15 +70,6 @@ void render_button(Button button, Shader &mainMenuShader, unsigned int mainMenuV
 
 void render_main_menu(Shader &mainMenuShader, float aspect, unsigned int mainMenuVAO)
 {
-    // --- BUTTON DATA ---
-    startButton.position = {300, 270};
-    startButton.size = buttonSize;
-    startButton.color = normalColor;
-
-    quitButton.position = {300, 200};
-    quitButton.size = buttonSize;
-    quitButton.color = normalColor;
-
     // --- ORTHOGRAPHIC PROJECT MATRIX ---
     glm::mat4 projection = glm::mat4(1.0f); // initialize matrix to identity matrix first
     projection = glm::ortho(0.0f, 800.0f, 0.0f, 600.0f, -1.0f, 1.0f);
@@ -96,6 +98,9 @@ void update_main_menu(GLFWwindow *window, AppState &currentState)
             cout << "Starting simulation..." << endl;
             currentState = AppState::CollisionWithBalls;
         }
+    } else
+    {
+        startButton.color = normalColor;
     }
 
     // Check Quit button
@@ -107,5 +112,8 @@ void update_main_menu(GLFWwindow *window, AppState &currentState)
             cout << "Closing..." << endl;
             glfwSetWindowShouldClose(window, true);
         }
+    } else 
+    {
+        quitButton.color = normalColor;
     }
 }

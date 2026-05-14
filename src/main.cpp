@@ -143,6 +143,9 @@ int main(void)
     // Vertex Data
     vector<glm::vec2> ballMesh = create_circle(ballRadius, ballSegmants, aspect);
 
+    // Initialize Main Menu
+    init_main_menu();
+
     // --- CONFIGURE CUBE VAO (AND VBO) ---
     unsigned int mainMenuVAO;
     unsigned int mainMenuVBO;
