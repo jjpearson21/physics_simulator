@@ -1,15 +1,15 @@
-#define STB_IMAGE_IMPLEMENTATION
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <iostream>
+#include <cmath>
 
-#include "glad/glad.h"
-#include "GLFW/glfw3.h"
-
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/type_ptr.hpp"
+#include "main.h"
 
 #include "core/shader.h"
 #include "core/camera.h"
-#include "core/stb_image.h"
 
 #include "menus/main_menu.h"
 
@@ -21,27 +21,11 @@
 
 #include "structs/particle.h"
 
-#include <iostream>
-#include <cmath>
-
 using namespace std;
 
-// ===== Settings =====
-// window
-const unsigned int WINDOW_WIDTH = 800;
-const unsigned int WINDOW_HEIGHT = 600;
-
-// timing
+// Timing
 float deltaTime = 0.0f; // time between current and last frame
 float lastFrame = 0.0f;
-
-// ===== App State =====
-enum class AppState
-{
-    MainMenu,
-    CollisionWithBalls,
-    Paused
-};
 
 // ===== Functions For Running Program =====
 
@@ -102,43 +86,6 @@ GLFWwindow *create_window()
     return window;
 }
 
-unsigned int load_texture(char const *path)
-{
-    unsigned int textureID;
-    glGenTextures(1, &textureID);
-
-    int width, height, nrComponents;
-    unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
-    if (data)
-    {
-        GLenum format;
-        if (nrComponents == 1)
-            format = GL_RED;
-        else if (nrComponents == 3)
-            format = GL_RGB;
-        else if (nrComponents == 4)
-            format = GL_RGBA;
-
-        glBindTexture(GL_TEXTURE_2D, textureID);
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        stbi_image_free(data);
-    }
-    else
-    {
-        std::cout << "Texture failed to load at path: " << path << std::endl;
-        stbi_image_free(data);
-    }
-
-    return textureID;
-}
-
 vector<glm::vec2> create_circle(float radius, int segments, float aspect)
 {
     vector<glm::vec2> vertices;
@@ -167,6 +114,9 @@ int main(void)
 
     // Create window
     GLFWwindow *window = create_window();
+
+    // Set mouse mode
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
     // Load GLAD
     if (!load_glad())
@@ -234,6 +184,7 @@ int main(void)
         switch (currentState)
         {
         case AppState::MainMenu:
+            update_main_menu(window, currentState);
             render_main_menu(mainMenuShader, aspect, mainMenuVAO);
             break;
 

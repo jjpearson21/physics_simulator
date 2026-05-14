@@ -10,7 +10,7 @@
 
 #include "../settings/constants.h"
 
-#include "../structs/particle.h"
+#include "structs/particle.h"
 
 #include <random>
 

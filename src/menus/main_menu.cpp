@@ -1,14 +1,14 @@
 #include "main_menu.h"
 
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/type_ptr.hpp"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
-#include "../core/shader.h"
+#include "core/shader.h"
 
 #include "structs/button.h"
 
-// Vertex Data
+// --- VERTEX DATA ---
 float iconVertices[] = {
     // x,  y
     0.0f, 0.0f,
@@ -19,6 +19,16 @@ float iconVertices[] = {
     1.0f, 1.0f,
     0.0f, 1.0f};
 
+// --- BUTTONS ---
+Button startButton;
+Button quitButton;
+
+// --- BUTTON SETTINGS ---
+glm::vec2 buttonSize =  {200, 60};
+glm::vec3 normalColor = {0.2f, 0.7f, 0.3f};
+glm::vec3 hoverColor =  {0.3f, 0.9f, 0.4f};
+
+// --- MAIN MENU FUNCTIONS ---
 void setup_buffer_main_menu(unsigned int &mainMenuVAO, unsigned int &mainMenuVBO)
 {
     glGenVertexArrays(1, &mainMenuVAO);
@@ -50,11 +60,13 @@ void render_button(Button button, Shader &mainMenuShader, unsigned int mainMenuV
 void render_main_menu(Shader &mainMenuShader, float aspect, unsigned int mainMenuVAO)
 {
     // --- BUTTON DATA ---
-    Button startButton;
+    startButton.position = {300, 270};
+    startButton.size = buttonSize;
+    startButton.color = normalColor;
 
-    startButton.position = {300, 200};
-    startButton.size = {200, 60};
-    startButton.color = {0.2f, 0.7f, 0.3f};
+    quitButton.position = {300, 200};
+    quitButton.size = buttonSize;
+    quitButton.color = normalColor;
 
     // --- ORTHOGRAPHIC PROJECT MATRIX ---
     glm::mat4 projection = glm::mat4(1.0f); // initialize matrix to identity matrix first
@@ -64,4 +76,36 @@ void render_main_menu(Shader &mainMenuShader, float aspect, unsigned int mainMen
     mainMenuShader.setMat4("projection", projection);
 
     render_button(startButton, mainMenuShader, mainMenuVAO);
+    render_button(quitButton, mainMenuShader, mainMenuVAO);
+}
+
+void update_main_menu(GLFWwindow *window, AppState &currentState)
+{
+    double mouseX, mouseY;
+
+    // Get mouse position
+    glfwGetCursorPos(window, &mouseX, &mouseY);
+    mouseY = WINDOW_HEIGHT - mouseY;
+
+    // Check Start button
+    if (startButton.is_hovered(mouseX, mouseY))
+    {
+        startButton.color = hoverColor;
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
+        {
+            cout << "Starting simulation..." << endl;
+            currentState = AppState::CollisionWithBalls;
+        }
+    }
+
+    // Check Quit button
+    if (quitButton.is_hovered(mouseX, mouseY))
+    {
+        quitButton.color = hoverColor;
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
+        {
+            cout << "Closing..." << endl;
+            glfwSetWindowShouldClose(window, true);
+        }
+    }
 }

@@ -16,5 +16,19 @@ CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 
+# VS Code
+.vscode/
+
+# Ninja
+*.ninja
+.ninja_deps
+.ninja_log
+
+# Debug symbols
+*.pdb
+
+# Compile commands
+compile_commands.json
+
 # Misc
 .DS_Store
